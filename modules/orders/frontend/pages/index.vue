@@ -3,7 +3,6 @@ definePageMeta({ middleware: 'auth' })
 
 const { $api } = useNuxtApp()
 const route = useRoute()
-const router = useRouter()
 
 interface Cargo {
   id: string
@@ -33,14 +32,45 @@ const loading = ref(true)
 const saving = ref(false)
 const orderPrefix = ref('')
 const errorMsg = ref('')
+const toast = ref<{ message: string; type: 'success' | 'error' } | null>(null)
+
+function showToast(message: string, type: 'success' | 'error' = 'success') {
+  toast.value = { message, type }
+  setTimeout(() => { toast.value = null }, 3000)
+}
+
+const modulesStore = useModulesStore()
+const hasTransport = computed(() => modulesStore.modules.some((m: any) => m.key === 'transport' && m.enabled))
+const hasCounterparties = computed(() => modulesStore.modules.some((m: any) => m.key === 'counterparties' && m.enabled))
+const hasWarehouses = computed(() => modulesStore.modules.some((m: any) => m.key === 'warehouses' && m.enabled))
+const vehicles = ref<any[]>([])
+const counterparties = ref<any[]>([])
+const warehouses = ref<any[]>([])
 
 const form = ref({
   number: '',
   status: 'draft',
   description: '',
   organizationId: '',
+  vehicleId: '',
+  counterpartyId: '',
+  warehouseId: '',
   cargos: [] as { name: string; weight: number | null; volume: number | null; quantity: number; unit: string }[],
 })
+
+const events = ref<any[]>([])
+const eventsLoading = ref(false)
+const initialForm = ref('')
+
+function formSnapshot() {
+  return JSON.stringify({ ...form.value, cargos: form.value.cargos.map(c => ({ ...c })) })
+}
+
+function resetDirty() {
+  initialForm.value = formSnapshot()
+}
+
+const isDirty = computed(() => formSnapshot() !== initialForm.value)
 
 const statusLabels: Record<string, string> = {
   draft: 'Черновик',
@@ -59,6 +89,7 @@ const statusColors: Record<string, string> = {
 const isNew = computed(() => route.query.new !== undefined)
 const editId = computed(() => route.query.id as string | undefined)
 const isForm = computed(() => isNew.value || editId.value)
+const activeTab = ref('main')
 
 const filtered = computed(() => {
   const q = search.value.toLowerCase().trim()
@@ -81,11 +112,34 @@ async function load() {
     organizations.value = orgsData
     const ordersMod = modules.find((m: any) => m.key === 'orders')
     orderPrefix.value = ordersMod?.config?.orderPrefix || ''
+
+    hasTransport.value = modules.some((m: any) => m.key === 'transport' && m.enabled)
+    hasCounterparties.value = modules.some((m: any) => m.key === 'counterparties' && m.enabled)
+    hasWarehouses.value = modules.some((m: any) => m.key === 'warehouses' && m.enabled)
+
+    const fetches: Promise<any>[] = []
+    if (hasTransport.value) fetches.push($api.get('/vehicles').then(r => vehicles.value = r.data))
+    if (hasCounterparties.value) fetches.push($api.get('/counterparties').then(r => counterparties.value = r.data.filter((c: any) => c.status === 'active')))
+    if (hasWarehouses.value) fetches.push($api.get('/warehouses').then(r => warehouses.value = r.data.filter((w: any) => w.status === 'active')))
+    await Promise.all(fetches)
+
     if (isNew.value && orgsData.length === 1) {
       form.value.organizationId = orgsData[0].id
     }
   } finally {
     loading.value = false
+  }
+}
+
+async function loadEvents(id: string) {
+  eventsLoading.value = true
+  try {
+    const { data } = await $api.get(`/orders/${id}/events`)
+    events.value = data
+  } catch {
+    events.value = []
+  } finally {
+    eventsLoading.value = false
   }
 }
 
@@ -99,8 +153,12 @@ async function loadOrder(id: string) {
       status: order.status,
       description: order.description || '',
       organizationId: order.organizationId || '',
+      vehicleId: order.vehicleId || '',
+      counterpartyId: order.counterpartyId || '',
+      warehouseId: order.warehouseId || '',
       cargos: order.cargos.map((c: any) => ({ name: c.name, weight: c.weight, volume: c.volume, quantity: c.quantity, unit: c.unit })),
     }
+    resetDirty()
   } catch {
     errorMsg.value = 'Ошибка загрузки заказа'
   }
@@ -108,19 +166,23 @@ async function loadOrder(id: string) {
 
 watch(editId, (id) => {
   if (id) {
-    form.value = { number: '', status: 'draft', description: '', organizationId: '', cargos: [] }
+    activeTab.value = 'main'
+    form.value = { number: '', status: 'draft', description: '', organizationId: '', vehicleId: '', counterpartyId: '', warehouseId: '', cargos: [] }
     errorMsg.value = ''
     loadOrder(id)
+    loadEvents(id)
   }
 }, { immediate: true })
 
 watch(isNew, (val) => {
   if (val) {
-    form.value = { number: '', status: 'draft', description: '', organizationId: '', cargos: [] }
+    activeTab.value = 'main'
+    form.value = { number: '', status: 'draft', description: '', organizationId: '', vehicleId: '', counterpartyId: '', warehouseId: '', cargos: [] }
     errorMsg.value = ''
     if (organizations.value.length === 1) {
       form.value.organizationId = organizations.value[0].id
     }
+    resetDirty()
   }
 }, { immediate: true })
 
@@ -141,15 +203,15 @@ watch(() => route.query, () => {
 })
 
 function goToList() {
-  router.replace('/modules/orders')
+  navigateTo('/modules/orders', { replace: true })
 }
 
 function goToNew() {
-  router.replace('/modules/orders?new')
+  navigateTo('/modules/orders?new', { replace: true })
 }
 
 function goToOrder(id: string) {
-  router.replace(`/modules/orders?id=${id}`)
+  navigateTo(`/modules/orders?id=${id}`, { replace: true })
 }
 
 async function save() {
@@ -158,13 +220,18 @@ async function save() {
   try {
     if (editId.value) {
       await $api.put(`/orders/${editId.value}`, form.value)
+      await loadOrder(editId.value)
+      await loadEvents(editId.value)
+      showToast('Заказ сохранён')
     } else {
-      await $api.post('/orders', form.value)
+      const { data } = await $api.post('/orders', form.value)
+      await load()
+      showToast('Заказ создан')
+      setTimeout(() => navigateTo(`/modules/orders?id=${data.id}`, { replace: true }), 500)
     }
-    await load()
-    goToList()
   } catch (err: any) {
     errorMsg.value = err?.response?.data?.message || 'Ошибка сохранения'
+    showToast(errorMsg.value, 'error')
   } finally {
     saving.value = false
   }
@@ -195,6 +262,7 @@ onMounted(load)
 
 <template>
   <div class="page">
+    <div v-if="toast" class="toast" :class="'toast-' + toast.type">{{ toast.message }}</div>
     <!-- List View -->
     <template v-if="!isForm">
       <div class="page-header">
@@ -237,8 +305,6 @@ onMounted(load)
 
       <p v-else class="empty">{{ search ? 'Нет заказов по запросу' : 'Нет заказов' }}</p>
     </template>
-
-    <!-- Form View (create/edit) -->
     <template v-else>
       <div class="page-header">
         <button class="btn-back" @click="goToList">← Назад к списку</button>
@@ -247,72 +313,127 @@ onMounted(load)
       </div>
 
       <div class="form-card">
+        <div class="tabs">
+          <button class="tab" :class="{ active: activeTab === 'main' }" @click="activeTab = 'main'">Основное</button>
+          <button v-if="hasTransport" class="tab" :class="{ active: activeTab === 'transport' }" @click="activeTab = 'transport'">Транспорт</button>
+          <button v-if="hasCounterparties" class="tab" :class="{ active: activeTab === 'counterparty' }" @click="activeTab = 'counterparty'">Контрагент</button>
+          <button v-if="hasWarehouses" class="tab" :class="{ active: activeTab === 'warehouse' }" @click="activeTab = 'warehouse'">Склад</button>
+          <button class="tab" :class="{ active: activeTab === 'cargos' }" @click="activeTab = 'cargos'">Грузы</button>
+          <button v-if="editId" class="tab" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">История</button>
+        </div>
+
         <form @submit.prevent="save" class="order-form">
-          <div class="form-row">
-            <div v-if="editId" class="field flex-1">
-              <label>Номер заказа</label>
-              <input :value="form.number" class="input-readonly" readonly />
+          <template v-if="activeTab === 'main'">
+            <div class="form-row">
+              <div v-if="editId" class="field flex-1">
+                <label>Номер заказа</label>
+                <input :value="form.number" class="input-readonly" readonly />
+              </div>
+              <div class="field field-status">
+                <label>Статус</label>
+                <select v-model="form.status" class="input-select">
+                  <option value="draft">Черновик</option>
+                  <option value="active">Активен</option>
+                  <option value="completed">Завершён</option>
+                  <option value="cancelled">Отменён</option>
+                </select>
+              </div>
             </div>
-            <div class="field field-status">
-              <label>Статус</label>
-              <select v-model="form.status" class="input-select">
-                <option value="draft">Черновик</option>
-                <option value="active">Активен</option>
-                <option value="completed">Завершён</option>
-                <option value="cancelled">Отменён</option>
+            <div class="field">
+              <label>Описание</label>
+              <textarea v-model="form.description" class="input-textarea" rows="3" />
+            </div>
+            <div class="field">
+              <label>Организация</label>
+              <select v-model="form.organizationId" class="input-select">
+                <option value="">Без организации</option>
+                <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
               </select>
             </div>
-          </div>
+          </template>
 
-          <div class="field">
-            <label>Описание</label>
-            <textarea v-model="form.description" class="input-textarea" rows="2" />
-          </div>
-
-          <div class="field">
-            <label>Организация</label>
-            <select v-model="form.organizationId" class="input-select">
-              <option value="">Без организации</option>
-              <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
-            </select>
-          </div>
-
-          <div class="cargo-section">
-            <div class="cargo-header">
-              <label>Грузы</label>
-              <button type="button" class="btn-add-cargo" @click="addCargo">+ Добавить груз</button>
+          <template v-if="activeTab === 'transport' && hasTransport">
+            <div class="field">
+              <label>Транспортное средство</label>
+              <select v-model="form.vehicleId" class="input-select">
+                <option value="">Не выбрано</option>
+                <option v-for="v in vehicles" :key="v.id" :value="v.id">{{ v.licensePlate }} — {{ v.brand }} {{ v.model }}</option>
+              </select>
             </div>
-            <div v-for="(cargo, i) in form.cargos" :key="i" class="cargo-row">
-              <div class="field flex-1">
-                <label>Наименование</label>
-                <input v-model="cargo.name" placeholder="Наименование" />
-              </div>
-              <div class="field field-sm">
-                <label>Вес</label>
-                <input v-model.number="cargo.weight" type="number" placeholder="кг" />
-              </div>
-              <div class="field field-sm">
-                <label>Объём</label>
-                <input v-model.number="cargo.volume" type="number" placeholder="м³" />
-              </div>
-              <div class="field field-tiny">
-                <label>Кол-во</label>
-                <input v-model.number="cargo.quantity" type="number" min="1" />
-              </div>
-              <div class="field field-xs">
-                <label>Ед.</label>
-                <input v-model="cargo.unit" placeholder="шт" />
-              </div>
-              <button type="button" class="btn-remove-cargo" @click="removeCargo(i)">✕</button>
+          </template>
+
+          <template v-if="activeTab === 'counterparty' && hasCounterparties">
+            <div class="field">
+              <label>Контрагент</label>
+              <select v-model="form.counterpartyId" class="input-select">
+                <option value="">Не выбран</option>
+                <option v-for="c in counterparties" :key="c.id" :value="c.id">{{ c.name }} ({{ c.inn }})</option>
+              </select>
             </div>
-          </div>
+          </template>
+
+          <template v-if="activeTab === 'warehouse' && hasWarehouses">
+            <div class="field">
+              <label>Склад</label>
+              <select v-model="form.warehouseId" class="input-select">
+                <option value="">Не выбран</option>
+                <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
+              </select>
+            </div>
+          </template>
+
+          <template v-if="activeTab === 'cargos'">
+            <div class="cargo-section">
+              <div class="cargo-header">
+                <label>Грузы</label>
+                <button type="button" class="btn-add-cargo" @click="addCargo">+ Добавить груз</button>
+              </div>
+              <div v-for="(cargo, i) in form.cargos" :key="i" class="cargo-row">
+                <div class="field flex-1">
+                  <label>Наименование</label>
+                  <input v-model="cargo.name" placeholder="Наименование" />
+                </div>
+                <div class="field field-sm">
+                  <label>Вес</label>
+                  <input v-model.number="cargo.weight" type="number" placeholder="кг" />
+                </div>
+                <div class="field field-sm">
+                  <label>Объём</label>
+                  <input v-model.number="cargo.volume" type="number" placeholder="м³" />
+                </div>
+                <div class="field field-tiny">
+                  <label>Кол-во</label>
+                  <input v-model.number="cargo.quantity" type="number" min="1" />
+                </div>
+                <div class="field field-xs">
+                  <label>Ед.</label>
+                  <input v-model="cargo.unit" placeholder="шт" />
+                </div>
+                <button type="button" class="btn-remove-cargo" @click="removeCargo(i)">✕</button>
+              </div>
+            </div>
+          </template>
+
+          <template v-if="activeTab === 'history' && editId">
+            <div class="timeline">
+              <div v-for="ev in events" :key="ev.id" class="tl-item">
+                <div class="tl-dot" />
+                <div class="tl-body">
+                  <div class="tl-text">{{ ev.description }}</div>
+                  <div class="tl-time">{{ new Date(ev.createdAt).toLocaleString('ru-RU') }}</div>
+                </div>
+              </div>
+              <p v-if="!eventsLoading && !events.length" class="empty">Нет событий</p>
+              <div v-if="eventsLoading" class="loading">Загрузка...</div>
+            </div>
+          </template>
 
           <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
 
           <div class="form-actions">
             <button v-if="editId" type="button" class="btn-danger" @click="remove">Удалить</button>
             <div class="form-actions-right">
-              <button type="submit" class="btn-primary" :disabled="saving">{{ saving ? 'Сохранение...' : 'Сохранить' }}</button>
+              <button type="submit" class="btn-primary" :disabled="saving || !isDirty">{{ saving ? 'Сохранение...' : 'Сохранить' }}</button>
               <button type="button" class="btn-ghost" @click="goToList">Отмена</button>
             </div>
           </div>
@@ -434,8 +555,91 @@ onMounted(load)
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 12px;
-  padding: 24px;
+  overflow: hidden;
   max-width: 720px;
+}
+
+.tabs {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+  overflow-x: auto;
+}
+
+.tab {
+  padding: 12px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #64748b;
+  background: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: all 0.15s;
+
+  &:hover { color: #0f172a; }
+  &.active {
+    color: #3b82f6;
+    border-bottom-color: #3b82f6;
+  }
+}
+
+.order-form {
+  padding: 24px;
+}
+
+.timeline {
+  position: relative;
+  padding-left: 20px;
+  max-height: 400px;
+  overflow-y: auto;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: #e2e8f0;
+  }
+}
+
+.tl-item {
+  position: relative;
+  padding-bottom: 10px;
+
+  &:last-child { padding-bottom: 0; }
+}
+
+.tl-dot {
+  position: absolute;
+  left: -16px;
+  top: 5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3b82f6;
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px #e2e8f0;
+}
+
+.tl-body {
+  padding: 2px 0;
+}
+
+.tl-text {
+  font-size: 12px;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.tl-time {
+  font-size: 10px;
+  color: #94a3b8;
+  margin-top: 1px;
 }
 
 .order-form {
@@ -583,6 +787,36 @@ onMounted(load)
   font-size: 12px;
   margin-bottom: 2px;
   &:hover { color: #ef4444; }
+}
+
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 999;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  animation: toast-in 0.25s ease;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.toast-success {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.toast-error {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
 }
 
 .error-msg {

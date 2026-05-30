@@ -1,0 +1,19 @@
+model Counterparty {
+  id            String   @id @default(cuid())
+  name          String
+  type          String   @default("legal")
+  inn           String   @unique
+  kpp           String?
+  ogrn          String?
+  address       String?
+  phone         String?
+  email         String?
+  contactPerson String?  @map("contact_person")
+  status        String   @default("active")
+  notes         String?
+  organizationId String? @map("organization_id")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("counterparties")
+}

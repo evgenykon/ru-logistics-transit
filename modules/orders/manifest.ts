@@ -43,7 +43,7 @@ const manifest: ModuleManifest = {
 
   dependsOn: {
     entities: ['User', 'Organization'],
-    modules: [],
+    modules: ['transport', 'counterparties', 'warehouses'],
   },
 
   roles: [

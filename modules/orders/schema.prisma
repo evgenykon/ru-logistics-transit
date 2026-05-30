@@ -8,15 +8,18 @@ enum OrderStatus {
 }
 
 model Order {
-  id             String      @id @default(cuid())
-  number         String      @unique
-  status         OrderStatus @default(draft)
-  description    String?
-  organizationId String?     @map("organization_id")
-  createdById    String?     @map("created_by_id")
-  cargos         Cargo[]
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id              String      @id @default(cuid())
+  number          String      @unique
+  status          OrderStatus @default(draft)
+  description     String?
+  organizationId  String?     @map("organization_id")
+  createdById     String?     @map("created_by_id")
+  vehicleId       String?     @map("vehicle_id")
+  counterpartyId  String?     @map("counterparty_id")
+  warehouseId     String?     @map("warehouse_id")
+  cargos          Cargo[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
   @@map("orders")
 }
@@ -32,4 +35,16 @@ model Cargo {
   order    Order?  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("cargos")
+}
+
+model OrderEvent {
+  id          String   @id @default(cuid())
+  orderId     String   @map("order_id")
+  type        String
+  description String
+  userId      String?  @map("user_id")
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@map("order_events")
 }
