@@ -39,7 +39,7 @@ export function handleServerError(reply: FastifyReply, error: unknown) {
 
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
     logger.error(error, 'PrismaClientKnownRequestError P2002 (unique constraint):');
-    return reply.status(ERRORS.userExists.statusCode).send({ message: ERRORS.userExists.message });
+    return reply.status(409).send({ message: 'Запись с таким значением уже существует' });
   }
 
   logger.error(error, 'Internal Server Error:');
