@@ -16,12 +16,23 @@ model Order {
   createdById     String?     @map("created_by_id")
   vehicleId       String?     @map("vehicle_id")
   counterpartyId  String?     @map("counterparty_id")
-  warehouseId     String?     @map("warehouse_id")
   cargos          Cargo[]
+  orderWarehouses OrderWarehouse[]
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
   @@map("orders")
+}
+
+model OrderWarehouse {
+  id          String   @id @default(cuid())
+  orderId     String   @map("order_id")
+  warehouseId String   @map("warehouse_id")
+  type        String   @default("origin")
+  createdAt   DateTime @default(now())
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_warehouses")
 }
 
 model Cargo {

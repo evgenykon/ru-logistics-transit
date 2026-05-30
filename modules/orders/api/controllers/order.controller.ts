@@ -20,7 +20,13 @@ export async function listOrders(_request: FastifyRequest, reply: FastifyReply) 
       include: { cargos: true },
       orderBy: { createdAt: 'desc' },
     })
-    return reply.send(orders)
+    const orderIds = orders.map((o) => o.id)
+    const whLinks = await prisma.orderWarehouse.findMany({ where: { orderId: { in: orderIds } } })
+    const result = orders.map((o) => ({
+      ...o,
+      orderWarehouses: whLinks.filter((w) => w.orderId === o.id),
+    }))
+    return reply.send(result)
   } catch (err) {
     handleServerError(reply, err)
   }
@@ -77,13 +83,46 @@ export async function createOrder(request: FastifyRequest, reply: FastifyReply) 
         createdById: userId,
         vehicleId: data.vehicleId || null,
         counterpartyId: data.counterpartyId || null,
-        warehouseId: data.warehouseId || null,
         cargos: data.cargos ? { create: data.cargos.map((c: any) => ({ name: c.name, weight: c.weight, volume: c.volume, quantity: c.quantity, unit: c.unit })) } : undefined,
       },
       include: { cargos: true },
     })
 
+    if (data.orderWarehouses?.length) {
+      await prisma.orderWarehouse.createMany({
+        data: data.orderWarehouses.map((w: any) => ({
+          orderId: order.id,
+          warehouseId: w.warehouseId,
+          type: w.type || 'origin',
+        })),
+      })
+    }
+
     await addEvent(order.id, 'created', `Заказ ${orderNumber} создан`, userId, { status: order.status })
+
+    if (data.vehicleId) {
+      let vName = data.vehicleId
+      try { const v = await prisma.vehicle.findUnique({ where: { id: data.vehicleId } }); if (v) vName = v.licensePlate } catch {}
+      await addEvent(order.id, 'vehicle', `Назначено ТС: ${vName}`, userId)
+    }
+    if (data.counterpartyId) {
+      let cpName = ''
+      try { const cp = await prisma.counterparty.findUnique({ where: { id: data.counterpartyId } }); if (cp) cpName = cp.name } catch {}
+      await addEvent(order.id, 'counterparty', `Установлен контрагент: ${cpName}`, userId)
+    }
+    if (data.orderWarehouses?.length) {
+      for (const w of data.orderWarehouses) {
+        let whName = w.warehouseId
+        try { const wh = await prisma.warehouse.findUnique({ where: { id: w.warehouseId } }); if (wh) whName = wh.name } catch {}
+        const typeLabel = w.type === 'origin' ? 'отправления' : w.type === 'destination' ? 'доставки' : 'частичной погрузки'
+        await addEvent(order.id, 'warehouse', `Установлен склад ${typeLabel}: ${whName}`, userId)
+      }
+    }
+    if (data.organizationId) {
+      let orgName = ''
+      try { const org = await prisma.organization.findUnique({ where: { id: data.organizationId } }); if (org) orgName = org.name } catch {}
+      await addEvent(order.id, 'organization', `Установлена организация: ${orgName}`, userId)
+    }
     if (data.cargos?.length) {
       await addEvent(order.id, 'cargos', `Добавлено грузов: ${data.cargos.length}`, userId, { count: data.cargos.length })
     }
@@ -155,10 +194,21 @@ export async function updateOrder(request: FastifyRequest, reply: FastifyReply) 
         organizationId: data.organizationId,
         vehicleId: data.vehicleId || null,
         counterpartyId: data.counterpartyId || null,
-        warehouseId: data.warehouseId || null,
       },
       include: { cargos: true },
     })
+
+    if (data.orderWarehouses) {
+      await prisma.orderWarehouse.deleteMany({ where: { orderId: id } })
+      await prisma.orderWarehouse.createMany({
+        data: data.orderWarehouses.map((w: any) => ({
+          orderId: id,
+          warehouseId: w.warehouseId,
+          type: w.type || 'origin',
+        })),
+      })
+    }
+    const newWarehouses = await prisma.orderWarehouse.findMany({ where: { orderId: id } })
 
     if (old.status !== order.status) {
       await addEvent(id, 'status', `Статус изменён: ${statusLabels[old.status] || old.status} → ${statusLabels[order.status] || order.status}`, userId, { from: old.status, to: order.status })
@@ -201,18 +251,17 @@ export async function updateOrder(request: FastifyRequest, reply: FastifyReply) 
         : 'Контрагент откреплён', userId)
     }
 
-    if (old.warehouseId !== order.warehouseId) {
-      let whName = ''
-      try {
-        const wh = await prisma.warehouse.findUnique({ where: { id: order.warehouseId! } })
-        if (wh) whName = wh.name
-      } catch {}
-      await addEvent(id, 'warehouse', order.warehouseId
-        ? `Установлен склад: ${whName}`
-        : 'Склад откреплён', userId)
+    if (data.orderWarehouses) {
+      for (const w of data.orderWarehouses) {
+        if (!w.warehouseId) continue
+        let whName = w.warehouseId
+        try { const wh = await prisma.warehouse.findUnique({ where: { id: w.warehouseId } }); if (wh) whName = wh.name } catch {}
+        const typeLabel = w.type === 'origin' ? 'отправления' : w.type === 'destination' ? 'доставки' : 'частичной погрузки'
+        await addEvent(id, 'warehouse', `Установлен склад ${typeLabel}: ${whName}`, userId)
+      }
     }
 
-    return reply.send(order)
+    return reply.send({ ...order, orderWarehouses: newWarehouses })
   } catch (err) {
     handleServerError(reply, err)
   }

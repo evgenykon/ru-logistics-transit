@@ -1,0 +1,13 @@
+model TrackPoint {
+  id         String   @id @default(cuid())
+  orderId    String?  @map("order_id")
+  vehicleId  String?  @map("vehicle_id")
+  lat        Float
+  lng        Float
+  speed      Float?
+  direction  Float?
+  recordedAt DateTime @default(now())
+  source     String?  @default("manual")
+
+  @@map("track_points")
+}

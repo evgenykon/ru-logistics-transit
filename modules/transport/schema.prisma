@@ -9,6 +9,8 @@ model Vehicle {
   volume     Float?
   bodyType   String?  @map("body_type")
   status     String   @default("active")
+  lat        Float?
+  lng        Float?
   notes      String?
   organizationId String? @map("organization_id")
   createdAt  DateTime @default(now())

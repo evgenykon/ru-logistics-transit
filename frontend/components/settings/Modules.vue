@@ -152,6 +152,20 @@ onMounted(load);
             </div>
           </template>
 
+          <template v-if="editing?.key === 'tracking'">
+            <div class="section-divider" />
+            <div class="field">
+              <label>Вид карты</label>
+              <select v-model="form.moduleConfig.tileStyle" class="input-select">
+                <option value="osm:">Схема (OSM, русские названия)</option>
+                <option value="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json">Светлая (CartoDB Positron)</option>
+                <option value="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json">Тёмная (CartoDB Dark)</option>
+                <option value="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json">Подробная (CartoDB Voyager)</option>
+                <option value="raster:https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}.jpg">Спутник (ESRI)</option>
+              </select>
+            </div>
+          </template>
+
           <div class="modal-actions">
             <button type="submit" class="btn-primary">Сохранить</button>
             <button type="button" class="btn-ghost" @click="showForm = false">Отмена</button>
@@ -378,6 +392,12 @@ onMounted(load);
   height: 1px;
   background: #e2e8f0;
   margin: 4px 0;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
 }
 
 .input-select {

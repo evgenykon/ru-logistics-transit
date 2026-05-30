@@ -8,6 +8,8 @@ model Warehouse {
   area          Float?
   type          String?  @default("closed")
   status        String   @default("active")
+  lat           Float?
+  lng           Float?
   notes         String?
   organizationId String? @map("organization_id")
   createdAt     DateTime @default(now())

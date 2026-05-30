@@ -28,7 +28,7 @@ async function handleLogin() {
     <div class="login-card">
       <img src="/images/logo.png" alt="Транзит" class="login-logo" />
       <h1 class="login-title">Транзит</h1>
-      <p class="login-subtitle">Интеллектуальная Система Логистики</p>
+      <p class="login-subtitle">Простая Система Логистики</p>
 
       <form @submit.prevent="handleLogin" class="login-form">
         <div class="field">

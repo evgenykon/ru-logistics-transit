@@ -22,6 +22,8 @@ const form = ref({
   volume: null as number | null,
   bodyType: '',
   status: 'active',
+  lat: null as number | null,
+  lng: null as number | null,
   notes: '',
   organizationId: '',
 })
@@ -54,7 +56,7 @@ async function load() {
 
 function openCreate() {
   editingId.value = null
-  form.value = { brand: '', model: '', licensePlate: '', vin: '', year: null, capacity: null, volume: null, bodyType: '', status: 'active', notes: '', organizationId: '' }
+  form.value = { brand: '', model: '', licensePlate: '', vin: '', year: null, capacity: null, volume: null, bodyType: '', status: 'active', lat: null, lng: null, notes: '', organizationId: '' }
   showModal.value = true
 }
 
@@ -201,6 +203,16 @@ onMounted(load)
                 <option value="">Без организации</option>
                 <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
               </select>
+            </div>
+            <div class="form-row">
+              <div class="field field-coord">
+                <label>Широта</label>
+                <input v-model.number="form.lat" type="number" step="0.000001" placeholder="55.75" />
+              </div>
+              <div class="field field-coord">
+                <label>Долгота</label>
+                <input v-model.number="form.lng" type="number" step="0.000001" placeholder="37.62" />
+              </div>
             </div>
             <div class="field">
               <label>Примечание</label>
@@ -422,6 +434,8 @@ onMounted(load)
   cursor: pointer;
   &:hover { background: #f8fafc; }
 }
+
+.field-coord { width: 130px; }
 
 .error-msg { color: #ef4444; font-size: 13px; }
 </style>

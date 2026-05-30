@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "vehicles" ADD COLUMN     "lat" DOUBLE PRECISION,
+ADD COLUMN     "lng" DOUBLE PRECISION;
+
+-- AlterTable
+ALTER TABLE "warehouses" ADD COLUMN     "lat" DOUBLE PRECISION,
+ADD COLUMN     "lng" DOUBLE PRECISION;

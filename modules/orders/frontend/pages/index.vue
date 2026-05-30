@@ -27,8 +27,15 @@ interface Order {
 
 const orders = ref<Order[]>([])
 const organizations = ref<{ id: string; name: string }[]>([])
-const search = ref('')
+const search = ref(route.query.search as string || '')
 const loading = ref(true)
+
+watch(search, (val) => {
+  if (!isForm.value) {
+    const q = val ? { search: val } : {}
+    navigateTo({ path: '/modules/orders', query: q }, { replace: true })
+  }
+})
 const saving = ref(false)
 const orderPrefix = ref('')
 const errorMsg = ref('')
@@ -43,6 +50,7 @@ const modulesStore = useModulesStore()
 const hasTransport = computed(() => modulesStore.modules.some((m: any) => m.key === 'transport' && m.enabled))
 const hasCounterparties = computed(() => modulesStore.modules.some((m: any) => m.key === 'counterparties' && m.enabled))
 const hasWarehouses = computed(() => modulesStore.modules.some((m: any) => m.key === 'warehouses' && m.enabled))
+const hasTracking = computed(() => modulesStore.modules.some((m: any) => m.key === 'tracking' && m.enabled))
 const vehicles = ref<any[]>([])
 const counterparties = ref<any[]>([])
 const warehouses = ref<any[]>([])
@@ -54,12 +62,16 @@ const form = ref({
   organizationId: '',
   vehicleId: '',
   counterpartyId: '',
-  warehouseId: '',
+  orderWarehouses: [] as { warehouseId: string; type: string }[],
   cargos: [] as { name: string; weight: number | null; volume: number | null; quantity: number; unit: string }[],
 })
 
 const events = ref<any[]>([])
 const eventsLoading = ref(false)
+
+const trackingComponents: Record<string, () => Promise<{ default: any }>> = import.meta.glob('../../../tracking/frontend/components/*.vue')
+const trackingLoader = trackingComponents['../../../tracking/frontend/components/TrackingMap.vue']
+const TrackingMapComponent = trackingLoader ? defineAsyncComponent(trackingLoader) : null
 const initialForm = ref('')
 
 function formSnapshot() {
@@ -155,9 +167,10 @@ async function loadOrder(id: string) {
       organizationId: order.organizationId || '',
       vehicleId: order.vehicleId || '',
       counterpartyId: order.counterpartyId || '',
-      warehouseId: order.warehouseId || '',
+      orderWarehouses: order.orderWarehouses || [],
       cargos: order.cargos.map((c: any) => ({ name: c.name, weight: c.weight, volume: c.volume, quantity: c.quantity, unit: c.unit })),
     }
+    ensureWhSlots()
     resetDirty()
   } catch {
     errorMsg.value = 'Ошибка загрузки заказа'
@@ -167,7 +180,7 @@ async function loadOrder(id: string) {
 watch(editId, (id) => {
   if (id) {
     activeTab.value = 'main'
-    form.value = { number: '', status: 'draft', description: '', organizationId: '', vehicleId: '', counterpartyId: '', warehouseId: '', cargos: [] }
+    form.value = { number: '', status: 'draft', description: '', organizationId: '', vehicleId: '', counterpartyId: '', orderWarehouses: [], cargos: [] }
     errorMsg.value = ''
     loadOrder(id)
     loadEvents(id)
@@ -177,7 +190,8 @@ watch(editId, (id) => {
 watch(isNew, (val) => {
   if (val) {
     activeTab.value = 'main'
-    form.value = { number: '', status: 'draft', description: '', organizationId: '', vehicleId: '', counterpartyId: '', warehouseId: '', cargos: [] }
+    form.value = { number: '', status: 'draft', description: '', organizationId: '', vehicleId: '', counterpartyId: '', orderWarehouses: [], cargos: [] }
+    ensureWhSlots()
     errorMsg.value = ''
     if (organizations.value.length === 1) {
       form.value.organizationId = organizations.value[0].id
@@ -186,16 +200,6 @@ watch(isNew, (val) => {
   }
 }, { immediate: true })
 
-watch(isNew, (val) => {
-  if (val) {
-    form.value = { number: '', status: 'draft', description: '', organizationId: '', cargos: [] }
-    errorMsg.value = ''
-    if (organizations.value.length === 1) {
-      form.value.organizationId = organizations.value[0].id
-    }
-  }
-})
-
 watch(() => route.query, () => {
   if (!isNew.value && !editId.value) {
     load()
@@ -203,7 +207,8 @@ watch(() => route.query, () => {
 })
 
 function goToList() {
-  navigateTo('/modules/orders', { replace: true })
+  const q = search.value ? { search: search.value } : {}
+  navigateTo({ path: '/modules/orders', query: q }, { replace: true })
 }
 
 function goToNew() {
@@ -247,6 +252,44 @@ async function remove() {
   } catch {
     errorMsg.value = 'Ошибка удаления'
   }
+}
+
+const partialWarehouses = computed({
+  get: () => form.value.orderWarehouses.filter((w) => w.type === 'partial'),
+  set: (val) => {
+    const fixed = form.value.orderWarehouses.filter((w) => w.type !== 'partial')
+    form.value.orderWarehouses = [...fixed, ...val]
+  },
+})
+
+function ensureWhSlots() {
+  if (!form.value.orderWarehouses.some((w) => w.type === 'origin')) {
+    form.value.orderWarehouses.unshift({ warehouseId: '', type: 'origin' })
+  }
+  if (!form.value.orderWarehouses.some((w) => w.type === 'destination')) {
+    form.value.orderWarehouses.push({ warehouseId: '', type: 'destination' })
+  }
+}
+
+function setWh(index: number, warehouseId: string) {
+  const types = ['origin', 'destination']
+  if (!form.value.orderWarehouses[index]) {
+    form.value.orderWarehouses[index] = { warehouseId, type: types[index] || 'origin' }
+  } else {
+    form.value.orderWarehouses[index].warehouseId = warehouseId
+  }
+}
+
+function addPartialWh() {
+  form.value.orderWarehouses.push({ warehouseId: '', type: 'partial' })
+}
+
+function removePartialWh(index: number) {
+  const idx = form.value.orderWarehouses.findIndex((_, i) => {
+    const partials = form.value.orderWarehouses.filter((w) => w.type === 'partial')
+    return partials[index] === form.value.orderWarehouses[i]
+  })
+  if (idx !== -1) form.value.orderWarehouses.splice(idx, 1)
 }
 
 function addCargo() {
@@ -319,10 +362,11 @@ onMounted(load)
           <button v-if="hasCounterparties" class="tab" :class="{ active: activeTab === 'counterparty' }" @click="activeTab = 'counterparty'">Контрагент</button>
           <button v-if="hasWarehouses" class="tab" :class="{ active: activeTab === 'warehouse' }" @click="activeTab = 'warehouse'">Склад</button>
           <button class="tab" :class="{ active: activeTab === 'cargos' }" @click="activeTab = 'cargos'">Грузы</button>
+          <button v-if="editId" class="tab" :class="{ active: activeTab === 'tracking' }" @click="activeTab = 'tracking'">Трекинг</button>
           <button v-if="editId" class="tab" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">История</button>
         </div>
 
-        <form @submit.prevent="save" class="order-form">
+        <form @submit.prevent="save" @keydown.enter.prevent class="order-form">
           <template v-if="activeTab === 'main'">
             <div class="form-row">
               <div v-if="editId" class="field flex-1">
@@ -374,11 +418,33 @@ onMounted(load)
 
           <template v-if="activeTab === 'warehouse' && hasWarehouses">
             <div class="field">
-              <label>Склад</label>
-              <select v-model="form.warehouseId" class="input-select">
+              <label>Склад отправления</label>
+              <select :value="form.orderWarehouses[0]?.warehouseId || ''" @change="setWh(0, ($event.target as HTMLSelectElement).value)" class="input-select">
                 <option value="">Не выбран</option>
                 <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
               </select>
+            </div>
+            <div class="field">
+              <label>Склад доставки</label>
+              <select :value="form.orderWarehouses[1]?.warehouseId || ''" @change="setWh(1, ($event.target as HTMLSelectElement).value)" class="input-select">
+                <option value="">Не выбран</option>
+                <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
+              </select>
+            </div>
+            <div class="section-divider" />
+            <div class="wh-partial-header">
+              <label>Склады частичной погрузки/разгрузки</label>
+              <button type="button" class="btn-add-cargo" @click="addPartialWh">+ Добавить</button>
+            </div>
+            <div v-for="(wh, i) in partialWarehouses" :key="i" class="cargo-row">
+              <div class="field flex-1">
+                <label>Склад</label>
+                <select v-model="wh.warehouseId" class="input-select">
+                  <option value="">Не выбран</option>
+                  <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
+                </select>
+              </div>
+              <button type="button" class="btn-remove-cargo" @click="removePartialWh(i)">✕</button>
             </div>
           </template>
 
@@ -413,6 +479,11 @@ onMounted(load)
               </div>
             </div>
           </template>
+
+          <template v-if="activeTab === 'tracking' && editId && TrackingMapComponent">
+            <TrackingMapComponent :order-id="editId" />
+          </template>
+          <p v-else-if="activeTab === 'tracking' && editId" class="empty">Трекинг не доступен</p>
 
           <template v-if="activeTab === 'history' && editId">
             <div class="timeline">
@@ -556,7 +627,6 @@ onMounted(load)
   border: 1px solid #e2e8f0;
   border-radius: 12px;
   overflow: hidden;
-  max-width: 720px;
 }
 
 .tabs {
