@@ -1,0 +1,183 @@
+// ===== COLORS =====
+
+// Brand
+$color-green: rgb(107, 203, 119);
+$color-green-dark: rgb(58, 158, 106);
+$color-green-variant: rgb(82, 170, 94);
+$color-blue: rgb(79, 141, 247);
+$color-blue-dark: rgb(37, 99, 235);
+
+// Text
+$color-text: #111827;
+$color-text-dark: #1f2937;
+$color-text-secondary: #5b6472;
+$color-text-subtitle: #5f6b7a;
+$color-text-muted: #6b7280;
+$color-text-disabled: #999;
+$color-text-disabled-dark: #777;
+$color-text-link: #4b5563;
+$color-text-badge-green: #4f7a56;
+$color-text-ai: #8ee8a0;
+
+// Backgrounds
+$color-bg: #faf8f3;
+$color-bg-card: #fffdf9;
+$color-bg-badge: #f4f6f8;
+$color-bg-badge-green: #eef6eb;
+$color-bg-disabled: #fcfcfc;
+
+// Borders
+$color-border: #d9dee5;
+$color-border-warm: #ddd6c8;
+$color-border-green: #d9ead6;
+$color-border-disabled: #e2e2e2;
+
+// Misc
+$color-dot: #9ca3af;
+$color-status-green: #6bcb77;
+
+// ===== UNIFIED DESIGN TOKENS (from Figma) =====
+
+// Base
+$color-bg-page: #fffff5;
+$color-white: #fff;
+$color-vast: #1a1a1a;
+$color-lumen: #ffffeb;
+$color-lumen-dark: #e4e4d0;
+$color-dawn: #f0d7ff;
+$color-fathom: #034f46;
+$color-pulse: #7f1c34;
+$color-glow: #ffa946;
+
+// System
+$color-success-bg: #cef5ca;
+$color-success-text: #114e0b;
+$color-warning-bg: #fcf8d8;
+$color-error-bg: #f8e4e4;
+$color-error-text: #7f1c34;
+
+// Overlays
+$color-overlay-dark: rgba(0, 0, 0, 0.4);
+$color-text-overlay-light: rgba(255, 255, 255, 0.8);
+$color-ai-badge-bg: rgba(107, 203, 119, 0.22);
+$color-ai-badge-border: rgba(107, 203, 119, 0.38);
+
+// Neutral scale
+$color-neutral-black: #000;
+$color-neutral-darkest: #111;
+$color-neutral-darker: #222;
+$color-neutral-dark: #444;
+$color-neutral-default: #666;
+$color-neutral-light: #aaa;
+$color-neutral-lightest: #eee;
+
+// Borders
+$color-border-alt: #222;
+$color-border-primary: rgba(26, 26, 26, 0.3);
+
+// Backgrounds
+$color-bg-locked: #fafafa;
+$color-border-light: #ccc;
+
+// Progress tracks
+$color-progress-green-track: #a6dfa0;
+$color-progress-green-fill: #43a863;
+$color-progress-red-track: #d2a3af;
+$color-progress-red-fill: #7f1c34;
+$color-progress-yellow-track: #ffe0bc;
+$color-progress-yellow-fill: #ffa946;
+
+// ===== TYPOGRAPHY =====
+
+$font-heading: 'EB Garamond', serif;
+$font-body: 'Inter', sans-serif;
+
+// ===== SPACING =====
+
+$gap-xs: 4px;
+$gap-sm: 8px;
+$gap-md: 12px;
+$gap-lg: 24px;
+
+// ===== BORDER RADIUS =====
+
+$radius-xs: 4px;
+$radius-sm: 8px;
+$radius-md: 12px;
+$radius-card: 16px;
+$radius-lg: 16px;
+$radius-input: 14px;
+$radius-xl: 24px;
+$radius-3xl: 40px;
+$radius-pill: 9999px;
+
+// ===== FIGMA AUTH MODAL TOKENS =====
+
+$color-label: #374151;
+$color-input-border: #d1d5db;
+$color-divider: #e5e7eb;
+$color-summary-bg: #f9fafb;
+$color-placeholder: rgba(17, 24, 39, 0.5);
+$color-accent-green-from: #52aa5e;
+$color-accent-green-to: #6bcb77;
+$color-wa: #25d366;
+$color-tg: #08c;
+$color-vk: #07f;
+
+$shadow-modal: 0 24px 48px rgba(0, 0, 0, 0.1);
+$shadow-button:
+  0 4px 6px rgba(0, 0, 0, 0.1),
+  0 2px 4px rgba(0, 0, 0, 0.1);
+
+// ===== SHADOWS =====
+
+$shadow-sm:
+  0px 1px 3px rgba(0, 0, 0, 0.1),
+  0px 1px 2px rgba(0, 0, 0, 0.1);
+$shadow-md: 0px 2px 10px rgba(0, 0, 0, 0.05);
+$shadow-lg:
+  0px 10px 30px rgba(0, 0, 0, 0.08),
+  0px 2px 7px rgba(0, 0, 0, 0.05);
+$shadow-sidebar: 0px 4px 20px rgba(0, 0, 0, 0.07);
+$shadow-primary: 0px 10px 24px rgba(37, 99, 235, 0.25);
+$shadow-avatar: 0px 2px 8px rgba(107, 203, 119, 0.35);
+
+// ===== LAYOUT =====
+
+$sidebar-zone-width: 84px;
+$sidebar-inner-width: 64px;
+$content-max-width: 800px;
+$btn-height: 48px;
+
+// ===== TRANSITIONS =====
+
+$ease-smooth: cubic-bezier(0.8, 0, 0.2, 1);
+$ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+$ease-exit: cubic-bezier(0.4, 0, 1, 1);
+$duration-smooth: 300ms;
+
+// ===== MOTION =====
+$motion-fast: 180ms;
+$motion-base: 320ms;
+$motion-slow: 560ms;
+
+// ===== MIXINS =====
+
+@mixin btn-hover-shrink {
+  transition: transform $duration-smooth $ease-smooth;
+
+  &:hover {
+    transform: scale(0.96);
+  }
+
+  &:active {
+    transform: scale(0.93);
+  }
+}
+
+// ===== Landing-specific =====
+$landing-max-w: 1200px;
+$landing-nav-h: 72px;
+$landing-section-pad-y: clamp(64px, 9vw, 140px);
+$landing-gutter: clamp(20px, 4vw, 48px);
+$landing-radius-feature: 28px;
