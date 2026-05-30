@@ -11,6 +11,12 @@ model Vehicle {
   status     String   @default("active")
   lat        Float?
   lng        Float?
+  axles      Int?
+  bodyLength Float?   @map("body_length")
+  bodyWidth  Float?   @map("body_width")
+  bodyHeight Float?   @map("body_height")
+  tentHeight Float?   @map("tent_height")
+  trailerType String? @map("trailer_type")
   notes      String?
   organizationId String? @map("organization_id")
   createdAt  DateTime @default(now())

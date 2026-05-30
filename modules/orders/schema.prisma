@@ -12,6 +12,11 @@ model Order {
   number          String      @unique
   status          OrderStatus @default(draft)
   description     String?
+  loadingDate     DateTime?   @map("loading_date")
+  loadingTimeOfDay String?    @map("loading_time_of_day")
+  useLocalTime    Boolean     @default(false) @map("use_local_time")
+  timezone        String?     @default("+3")
+  expectedCompletionDate DateTime? @map("expected_completion_date")
   organizationId  String?     @map("organization_id")
   createdById     String?     @map("created_by_id")
   vehicleId       String?     @map("vehicle_id")
@@ -29,6 +34,10 @@ model OrderWarehouse {
   orderId     String   @map("order_id")
   warehouseId String   @map("warehouse_id")
   type        String   @default("origin")
+  loadingDate   DateTime? @map("loading_date")
+  loadingTime   String?   @map("loading_time")
+  unloadingDate DateTime? @map("unloading_date")
+  unloadingTime String?   @map("unloading_time")
   createdAt   DateTime @default(now())
   order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 

@@ -1,0 +1,17 @@
+model Transaction {
+  id             String   @id @default(cuid())
+  type           String   @default("expense")
+  amount         Float
+  currency       String   @default("RUB")
+  date           DateTime @default(now())
+  description    String?
+  category       String?
+  counterpartyId String?  @map("counterparty_id")
+  orderId        String?  @map("order_id")
+  organizationId String?  @map("organization_id")
+  status         String   @default("completed")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("transactions")
+}

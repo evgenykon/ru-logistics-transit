@@ -59,10 +59,14 @@ const form = ref({
   number: '',
   status: 'draft',
   description: '',
+  loadingDate: '',
+  useLocalTime: false,
+  timezone: '+3',
+  expectedCompletionDate: '',
   organizationId: '',
   vehicleId: '',
   counterpartyId: '',
-  orderWarehouses: [] as { warehouseId: string; type: string }[],
+  orderWarehouses: [] as { warehouseId: string; type: string; loadingDate?: string; loadingTime?: string | null; unloadingDate?: string; unloadingTime?: string | null }[],
   cargos: [] as { name: string; weight: number | null; volume: number | null; quantity: number; unit: string }[],
 })
 
@@ -164,6 +168,7 @@ async function loadOrder(id: string) {
       number: order.number,
       status: order.status,
       description: order.description || '',
+      loadingDate: order.loadingDate ? order.loadingDate.slice(0, 10) : '',
       organizationId: order.organizationId || '',
       vehicleId: order.vehicleId || '',
       counterpartyId: order.counterpartyId || '',
@@ -180,7 +185,7 @@ async function loadOrder(id: string) {
 watch(editId, (id) => {
   if (id) {
     activeTab.value = 'main'
-    form.value = { number: '', status: 'draft', description: '', organizationId: '', vehicleId: '', counterpartyId: '', orderWarehouses: [], cargos: [] }
+    form.value = { number: '', status: 'draft', description: '', loadingDate: '', useLocalTime: false, timezone: '+3', expectedCompletionDate: '', organizationId: '', vehicleId: '', counterpartyId: '', orderWarehouses: [], cargos: [] }
     errorMsg.value = ''
     loadOrder(id)
     loadEvents(id)
@@ -190,7 +195,7 @@ watch(editId, (id) => {
 watch(isNew, (val) => {
   if (val) {
     activeTab.value = 'main'
-    form.value = { number: '', status: 'draft', description: '', organizationId: '', vehicleId: '', counterpartyId: '', orderWarehouses: [], cargos: [] }
+    form.value = { number: '', status: 'draft', description: '', loadingDate: '', useLocalTime: false, timezone: '+3', expectedCompletionDate: '', organizationId: '', vehicleId: '', counterpartyId: '', orderWarehouses: [], cargos: [] }
     ensureWhSlots()
     errorMsg.value = ''
     if (organizations.value.length === 1) {
@@ -264,24 +269,39 @@ const partialWarehouses = computed({
 
 function ensureWhSlots() {
   if (!form.value.orderWarehouses.some((w) => w.type === 'origin')) {
-    form.value.orderWarehouses.unshift({ warehouseId: '', type: 'origin' })
+    form.value.orderWarehouses.unshift({ warehouseId: '', type: 'origin', loadingDate: '', loadingTime: null, unloadingDate: '', unloadingTime: null })
   }
   if (!form.value.orderWarehouses.some((w) => w.type === 'destination')) {
-    form.value.orderWarehouses.push({ warehouseId: '', type: 'destination' })
+    form.value.orderWarehouses.push({ warehouseId: '', type: 'destination', loadingDate: '', loadingTime: null, unloadingDate: '', unloadingTime: null })
+  }
+}
+
+function onWhDate(index: number, field: string, e: any) {
+  const wh = form.value.orderWarehouses[index]
+  if (wh) (wh as any)[field] = e.target.value
+}
+
+function toggleWhTime(index: number, field: string) {
+  const wh = form.value.orderWarehouses[index]
+  if (!wh) return
+  if ((wh as any)[field] != null) {
+    (wh as any)[field] = null
+  } else {
+    (wh as any)[field] = '12:00'
   }
 }
 
 function setWh(index: number, warehouseId: string) {
   const types = ['origin', 'destination']
   if (!form.value.orderWarehouses[index]) {
-    form.value.orderWarehouses[index] = { warehouseId, type: types[index] || 'origin' }
+    form.value.orderWarehouses[index] = { warehouseId, type: types[index] || 'origin', loadingDate: '', loadingTime: null, unloadingDate: '', unloadingTime: null }
   } else {
     form.value.orderWarehouses[index].warehouseId = warehouseId
   }
 }
 
 function addPartialWh() {
-  form.value.orderWarehouses.push({ warehouseId: '', type: 'partial' })
+  form.value.orderWarehouses.push({ warehouseId: '', type: 'partial', loadingDate: '', loadingTime: null, unloadingDate: '', unloadingTime: null })
 }
 
 function removePartialWh(index: number) {
@@ -360,7 +380,7 @@ onMounted(load)
           <button class="tab" :class="{ active: activeTab === 'main' }" @click="activeTab = 'main'">Основное</button>
           <button v-if="hasTransport" class="tab" :class="{ active: activeTab === 'transport' }" @click="activeTab = 'transport'">Транспорт</button>
           <button v-if="hasCounterparties" class="tab" :class="{ active: activeTab === 'counterparty' }" @click="activeTab = 'counterparty'">Контрагент</button>
-          <button v-if="hasWarehouses" class="tab" :class="{ active: activeTab === 'warehouse' }" @click="activeTab = 'warehouse'">Склад</button>
+          <button v-if="hasWarehouses" class="tab" :class="{ active: activeTab === 'warehouse' }" @click="activeTab = 'warehouse'">Маршрут</button>
           <button class="tab" :class="{ active: activeTab === 'cargos' }" @click="activeTab = 'cargos'">Грузы</button>
           <button v-if="editId" class="tab" :class="{ active: activeTab === 'tracking' }" @click="activeTab = 'tracking'">Трекинг</button>
           <button v-if="editId" class="tab" :class="{ active: activeTab === 'history' }" @click="activeTab = 'history'">История</button>
@@ -386,6 +406,16 @@ onMounted(load)
             <div class="field">
               <label>Описание</label>
               <textarea v-model="form.description" class="input-textarea" rows="3" />
+            </div>
+            <div class="form-row">
+              <div class="field field-date">
+                <label>Предполагаемая дата выезда</label>
+                <input v-model="form.loadingDate" type="date" class="input-select" />
+              </div>
+              <div class="field field-date">
+                <label>Ожидаемая дата завершения заказа</label>
+                <input v-model="form.expectedCompletionDate" type="date" class="input-select" />
+              </div>
             </div>
             <div class="field">
               <label>Организация</label>
@@ -417,19 +447,48 @@ onMounted(load)
           </template>
 
           <template v-if="activeTab === 'warehouse' && hasWarehouses">
-            <div class="field">
-              <label>Склад отправления</label>
-              <select :value="form.orderWarehouses[0]?.warehouseId || ''" @change="setWh(0, ($event.target as HTMLSelectElement).value)" class="input-select">
-                <option value="">Не выбран</option>
-                <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
+            <div class="tz-bar">
+              <label class="tz-check">
+                <input v-model="form.useLocalTime" type="checkbox" />
+                <span>Местное время</span>
+              </label>
+              <select v-if="form.useLocalTime" v-model="form.timezone" class="input-select tz-select">
+                <option value="+2">+2 Калининград</option>
+                <option value="+3">+3 Москва</option>
+                <option value="+4">+4 Самара</option>
+                <option value="+5">+5 Екатеринбург</option>
+                <option value="+6">+6 Омск</option>
+                <option value="+7">+7 Красноярск</option>
+                <option value="+8">+8 Иркутск</option>
+                <option value="+9">+9 Якутск</option>
+                <option value="+10">+10 Владивосток</option>
+                <option value="+11">+11 Магадан</option>
+                <option value="+12">+12 Камчатка</option>
               </select>
             </div>
-            <div class="field">
-              <label>Склад доставки</label>
-              <select :value="form.orderWarehouses[1]?.warehouseId || ''" @change="setWh(1, ($event.target as HTMLSelectElement).value)" class="input-select">
-                <option value="">Не выбран</option>
-                <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
-              </select>
+            <div class="wh-header">
+              <span class="wh-h-name">Склад</span>
+              <span class="wh-h-dt">Ожидаемая дата погрузки</span>
+              <span class="wh-h-dt">Фактическая дата</span>
+            </div>
+            <div class="wh-block">
+              <div class="wh-label">Склад отправления</div>
+              <div class="wh-row">
+                <select :value="form.orderWarehouses[0]?.warehouseId || ''" @change="setWh(0, $event.target.value)" class="input-select">
+                  <option value="">Не выбран</option>
+                  <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
+                </select>
+                <div class="dt-group">
+                  <input :value="form.orderWarehouses[0]?.loadingDate || ''" @change="onWhDate(0, 'loadingDate', $event)" type="date" class="input-date" />
+                  <button type="button" class="btn-time" :class="{ active: form.orderWarehouses[0]?.loadingTime }" @click="toggleWhTime(0, 'loadingTime')">🕐</button>
+                  <input v-if="form.orderWarehouses[0]?.loadingTime != null" :value="form.orderWarehouses[0]?.loadingTime || ''" @change="onWhDate(0, 'loadingTime', $event)" type="time" class="input-time" />
+                </div>
+                <div class="dt-group">
+                  <input :value="form.orderWarehouses[0]?.unloadingDate || ''" @change="onWhDate(0, 'unloadingDate', $event)" type="date" class="input-date" />
+                  <button type="button" class="btn-time" :class="{ active: form.orderWarehouses[0]?.unloadingTime }" @click="toggleWhTime(0, 'unloadingTime')">🕐</button>
+                  <input v-if="form.orderWarehouses[0]?.unloadingTime != null" :value="form.orderWarehouses[0]?.unloadingTime || ''" @change="onWhDate(0, 'unloadingTime', $event)" type="time" class="input-time" />
+                </div>
+              </div>
             </div>
             <div class="section-divider" />
             <div class="wh-partial-header">
@@ -444,7 +503,37 @@ onMounted(load)
                   <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
                 </select>
               </div>
+              <div class="dt-group">
+                <input v-model="wh.loadingDate" type="date" class="input-date" />
+                <button type="button" class="btn-time" :class="{ active: wh.loadingTime }" @click="wh.loadingTime = wh.loadingTime ? null : '12:00'">🕐</button>
+                <input v-if="wh.loadingTime != null" v-model="wh.loadingTime" type="time" class="input-time" />
+              </div>
+              <div class="dt-group">
+                <input v-model="wh.unloadingDate" type="date" class="input-date" />
+                <button type="button" class="btn-time" :class="{ active: wh.unloadingTime }" @click="wh.unloadingTime = wh.unloadingTime ? null : '12:00'">🕐</button>
+                <input v-if="wh.unloadingTime != null" v-model="wh.unloadingTime" type="time" class="input-time" />
+              </div>
               <button type="button" class="btn-remove-cargo" @click="removePartialWh(i)">✕</button>
+            </div>
+            <div class="section-divider" />
+            <div class="wh-block">
+              <div class="wh-label">Склад доставки</div>
+              <div class="wh-row">
+                <select :value="form.orderWarehouses[1]?.warehouseId || ''" @change="setWh(1, $event.target.value)" class="input-select">
+                  <option value="">Не выбран</option>
+                  <option v-for="w in warehouses" :key="w.id" :value="w.id">{{ w.name }}</option>
+                </select>
+                <div class="dt-group">
+                  <input :value="form.orderWarehouses[1]?.loadingDate || ''" @change="onWhDate(1, 'loadingDate', $event)" type="date" class="input-date" />
+                  <button type="button" class="btn-time" :class="{ active: form.orderWarehouses[1]?.loadingTime }" @click="toggleWhTime(1, 'loadingTime')">🕐</button>
+                  <input v-if="form.orderWarehouses[1]?.loadingTime != null" :value="form.orderWarehouses[1]?.loadingTime || ''" @change="onWhDate(1, 'loadingTime', $event)" type="time" class="input-time" />
+                </div>
+                <div class="dt-group">
+                  <input :value="form.orderWarehouses[1]?.unloadingDate || ''" @change="onWhDate(1, 'unloadingDate', $event)" type="date" class="input-date" />
+                  <button type="button" class="btn-time" :class="{ active: form.orderWarehouses[1]?.unloadingTime }" @click="toggleWhTime(1, 'unloadingTime')">🕐</button>
+                  <input v-if="form.orderWarehouses[1]?.unloadingTime != null" :value="form.orderWarehouses[1]?.unloadingTime || ''" @change="onWhDate(1, 'unloadingTime', $event)" type="time" class="input-time" />
+                </div>
+              </div>
             </div>
           </template>
 
@@ -768,6 +857,7 @@ onMounted(load)
 
 .flex-1 { flex: 1; }
 .field-status { width: 160px; }
+.field-date { width: 170px; }
 .field-sm { width: 100px; }
 .field-tiny { width: 80px; }
 .field-xs { width: 64px; }
@@ -810,6 +900,25 @@ onMounted(load)
   white-space: nowrap;
   font-family: monospace;
 }
+
+.tz-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding: 8px 0; }
+.tz-check { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: #475569; cursor: pointer; input { margin: 0; } }
+.tz-select { width: 180px; }
+.dt-group { display: flex; align-items: center; gap: 2px; width: 210px; flex-shrink: 0; }
+.btn-time { padding: 6px 4px; border: 1px solid transparent; border-radius: 4px; background: none; cursor: pointer; font-size: 13px; line-height: 1; opacity: 0.4; transition: all 0.15s; &:hover { opacity: 0.8; } &.active { opacity: 1; border-color: #e2e8f0; background: #f8fafc; } }
+.input-time { padding: 8px 4px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; color: #0f172a; outline: none; width: 90px; &:focus { border-color: #3b82f6; } }
+
+.wh-header { display: flex; gap: 8px; padding: 0 0 6px; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.3px; }
+.wh-h-name { flex: 1; }
+.wh-h-dt { width: 210px; text-align: center; }
+
+.wh-block { margin-bottom: 14px; }
+.wh-label { font-size: 12px; font-weight: 500; color: #475569; margin-bottom: 4px; }
+.section-divider { height: 1px; background: #e2e8f0; margin: 12px 0; }
+.wh-row { display: flex; gap: 8px; align-items: flex-start; padding-top: 4px;
+  > select { flex: 1; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; font-size: 13px; color: #0f172a; outline: none; background: #fff; font-family: inherit; &:focus { border-color: #3b82f6; } }
+}
+.input-date { padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; color: #0f172a; outline: none; font-family: inherit; background: #fff; flex: 1; min-width: 0; &:focus { border-color: #3b82f6; } }
 
 .cargo-section {
   display: flex;
