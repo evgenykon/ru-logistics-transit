@@ -29,6 +29,9 @@ export default defineNuxtConfig({
   },
   vite: {
     server: {
+      fs: {
+        allow: ['/app/modules', '../modules'],
+      },
       hmr: {
         host: 'localhost',
         clientPort: 8089,

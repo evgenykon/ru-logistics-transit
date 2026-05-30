@@ -12,6 +12,7 @@
     "migrate:dev": "bunx prisma migrate dev",
     "migrate:create": "bunx prisma migrate dev --create-only",
     "migrate:deploy": "bunx prisma migrate deploy",
+    "modules:merge": "bun scripts/merge-prisma.ts",
     "prisma:generate": "bunx prisma generate",
     "prisma:reset": "bunx prisma migrate reset"
   },

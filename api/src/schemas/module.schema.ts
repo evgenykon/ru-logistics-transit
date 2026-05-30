@@ -16,6 +16,7 @@ export const updateModuleSchema = Joi.object({
   route: Joi.string().max(128),
   enabled: Joi.boolean(),
   order: Joi.number().integer().min(0),
+  config: Joi.object().unknown(),
 });
 
 export const moduleIdSchema = Joi.object({

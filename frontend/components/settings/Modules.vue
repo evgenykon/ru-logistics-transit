@@ -5,13 +5,18 @@ const loading = ref(true);
 const showForm = ref(false);
 const editing = ref<any | null>(null);
 
+interface WidgetForm {
+  key: string
+  name: string
+  enabled: boolean
+}
+
 const form = ref({
-  key: '',
   name: '',
   description: '',
-  icon: '',
-  route: '',
   order: 0,
+  widgets: [] as WidgetForm[],
+  moduleConfig: {} as Record<string, any>,
 });
 
 async function load() {
@@ -24,24 +29,42 @@ async function load() {
   }
 }
 
-function openCreate() {
-  editing.value = null;
-  form.value = { key: '', name: '', description: '', icon: '', route: '', order: 0 };
-  showForm.value = true;
-}
-
 function openEdit(mod: any) {
   editing.value = mod;
-  form.value = { ...mod };
+  const config = mod.config || {}
+  const wc = config.widgets || {}
+  const { widgets: _w, ...restConfig } = config
+  form.value = {
+    name: mod.name,
+    description: mod.description || '',
+    order: mod.order,
+    widgets: Object.entries(wc).map(([k, v]: [string, any]) => ({
+      key: k,
+      name: v.name || k,
+      enabled: v.enabled,
+    })),
+    moduleConfig: { ...restConfig },
+  }
   showForm.value = true;
 }
 
 async function save() {
-  if (editing.value) {
-    await $api.put(`/modules/${editing.value.id}`, form.value);
-  } else {
-    await $api.post('/modules', form.value);
+  if (!editing.value) return;
+  const payload: any = {
+    name: form.value.name,
+    description: form.value.description,
+    order: form.value.order,
   }
+  const configPayload: Record<string, any> = { ...form.value.moduleConfig }
+  if (form.value.widgets.length) {
+    const wc: Record<string, { enabled: boolean }> = {}
+    for (const w of form.value.widgets) {
+      wc[w.key] = { enabled: w.enabled }
+    }
+    configPayload.widgets = wc
+  }
+  payload.config = configPayload
+  await $api.put(`/modules/${editing.value.id}`, payload);
   showForm.value = false;
   await load();
 }
@@ -63,7 +86,6 @@ onMounted(load);
   <div class="modules-section">
     <div class="header">
       <h2 class="card-title">Управление модулями</h2>
-      <button class="btn-primary" @click="openCreate">+ Добавить модуль</button>
     </div>
 
     <div v-if="loading" class="loading">Загрузка...</div>
@@ -93,34 +115,45 @@ onMounted(load);
 
     <div v-if="showForm" class="overlay" @click.self="showForm = false">
       <div class="modal">
-        <h2>{{ editing ? 'Редактировать модуль' : 'Новый модуль' }}</h2>
+        <h2>Редактировать модуль</h2>
         <form @submit.prevent="save" class="modal-form">
           <div class="field">
-            <label>Ключ</label>
-            <input v-model="form.key" placeholder="orders" :disabled="!!editing" />
-          </div>
-          <div class="field">
             <label>Название</label>
-            <input v-model="form.name" placeholder="Заказы" />
+            <input v-model="form.name" />
           </div>
           <div class="field">
             <label>Описание</label>
-            <input v-model="form.description" placeholder="Управление заказами" />
-          </div>
-          <div class="field">
-            <label>Иконка (SVG)</label>
-            <input v-model="form.icon" placeholder='<svg ...>' />
-          </div>
-          <div class="field">
-            <label>Путь</label>
-            <input v-model="form.route" placeholder="/orders" />
+            <input v-model="form.description" />
           </div>
           <div class="field">
             <label>Порядок</label>
             <input v-model.number="form.order" type="number" min="0" />
           </div>
+          <div v-if="form.widgets.length" class="widgets-section">
+            <label class="widgets-label">Виджеты дашборда</label>
+            <label v-for="w in form.widgets" :key="w.key" class="widget-checkbox">
+              <input type="checkbox" :checked="w.enabled" @change="w.enabled = !w.enabled" />
+              <span>{{ w.name }}</span>
+            </label>
+          </div>
+
+          <template v-if="editing?.key === 'orders'">
+            <div class="section-divider" />
+            <div class="field">
+              <label>Префикс заказов</label>
+              <input v-model="form.moduleConfig.orderPrefix" placeholder="ORD-" />
+            </div>
+            <div class="field">
+              <label>Нумерация</label>
+              <select v-model="form.moduleConfig.numberingType" class="input-select">
+                <option value="global">Общая (сквозная)</option>
+                <option value="org">Внутри организации</option>
+              </select>
+            </div>
+          </template>
+
           <div class="modal-actions">
-            <button type="submit" class="btn-primary">{{ editing ? 'Сохранить' : 'Создать' }}</button>
+            <button type="submit" class="btn-primary">Сохранить</button>
             <button type="button" class="btn-ghost" @click="showForm = false">Отмена</button>
           </div>
         </form>
@@ -339,6 +372,47 @@ onMounted(load);
     opacity: 0.5;
     cursor: not-allowed;
   }
+}
+
+.section-divider {
+  height: 1px;
+  background: #e2e8f0;
+  margin: 4px 0;
+}
+
+.input-select {
+  padding: 8px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #0f172a;
+  outline: none;
+  background: #fff;
+  font-family: inherit;
+  &:focus { border-color: #3b82f6; }
+}
+
+.widgets-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.widgets-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #475569;
+}
+
+.widget-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #0f172a;
+  cursor: pointer;
+
+  input { margin: 0; }
 }
 
 .btn-ghost {

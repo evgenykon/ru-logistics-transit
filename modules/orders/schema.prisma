@@ -1,0 +1,35 @@
+enum OrderStatus {
+  draft
+  active
+  completed
+  cancelled
+
+  @@map("order_status")
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  number         String      @unique
+  status         OrderStatus @default(draft)
+  description    String?
+  organizationId String?     @map("organization_id")
+  createdById    String?     @map("created_by_id")
+  cargos         Cargo[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@map("orders")
+}
+
+model Cargo {
+  id       String  @id @default(cuid())
+  name     String
+  weight   Float?
+  volume   Float?
+  quantity Int     @default(1)
+  unit     String  @default("шт")
+  orderId  String? @map("order_id")
+  order    Order?  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("cargos")
+}

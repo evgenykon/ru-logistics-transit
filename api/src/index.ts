@@ -9,6 +9,7 @@ import { moduleRoutes } from './routes/module.routes';
 import { roleRoutes } from './routes/role.routes';
 import { userRoutes } from './routes/user.routes';
 import { organizationRoutes } from './routes/organization.routes';
+import { loadModules, registerModuleRoutes, syncModuleRecords, syncModulePermissions } from './modules/loader';
 import { registry } from './metrics';
 
 const server = Fastify<RawServerDefault>({
@@ -55,6 +56,11 @@ server.register(organizationRoutes);
 
 const start = async () => {
   try {
+    await loadModules(server);
+    await syncModuleRecords();
+    await syncModulePermissions();
+    await registerModuleRoutes(server);
+
     await server.listen({ port: 3001, host: '0.0.0.0' });
   } catch (err) {
     server.log.error(err);

@@ -49,7 +49,8 @@ services:
       dockerfile: Dockerfile.dev
     volumes:
       - ./api:/app
-    command: sh -c "bun install && bun run migrate:deploy && bun run prisma:generate && bun run dev"
+      - ./modules:/app/modules
+    command: sh -c "bun install && bun run modules:merge && bun run migrate:deploy && bun run prisma:generate && bun run dev"
     depends_on:
       db:
         condition: service_healthy
@@ -80,6 +81,7 @@ services:
       - "3000:3000"
     volumes:
       - ./frontend:/app
+      - ./modules:/app/modules
     deploy:
       resources:
         limits:

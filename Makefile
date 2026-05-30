@@ -43,6 +43,9 @@ dev-migrate:
 dev-migrate-create:
 	docker compose -f docker-compose.yml exec api sh -c "bun run migrate:create --name $(name)"
 
+dev-modules-merge:
+	docker compose -f docker-compose.yml exec api sh -c "bun run modules:merge"
+
 dev-prisma-generate:
 	docker compose -f docker-compose.yml exec api sh -c "bun run prisma:generate"
 

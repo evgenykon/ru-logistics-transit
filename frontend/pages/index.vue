@@ -1,28 +1,67 @@
 <script setup lang="ts">
-definePageMeta({ middleware: 'auth' });
+definePageMeta({ middleware: 'auth' })
+
+const { $api } = useNuxtApp()
+const auth = useAuthStore()
+
+const widgetComponents: Record<string, () => Promise<{ default: any }>> = import.meta.glob('../modules/*/frontend/widgets/*.vue')
+
+interface WidgetInstance {
+  component: any
+  key: string
+}
+
+const widgets = ref<WidgetInstance[]>([])
+
+onMounted(async () => {
+  try {
+    const { data: modules } = await $api.get('/modules')
+
+    const instances: WidgetInstance[] = []
+
+    for (const mod of modules) {
+      if (!mod.enabled) continue
+      const config = mod.config || {}
+      const widgetConfigs = config.widgets || {}
+
+      for (const [widgetKey, wc] of Object.entries(widgetConfigs) as [string, any][]) {
+        if (!wc.enabled) continue
+        if (!auth.hasRole('admin') && !auth.hasPermission(wc.requiredPermission)) continue
+
+        const componentPath = `../modules/${mod.key}/frontend/widgets/${widgetKey}.vue`
+        const loader = widgetComponents[componentPath]
+        if (!loader) continue
+
+        instances.push({
+          component: defineAsyncComponent(loader),
+          key: `${mod.key}.${widgetKey}`,
+        })
+      }
+    }
+
+    widgets.value = instances
+  } catch {
+    // no widgets
+  }
+})
 </script>
 
 <template>
   <div class="dashboard">
     <h1 class="page-title">Дашборд</h1>
 
-    <div class="stats-grid">
-      <div class="stat-card">
-        <span class="stat-label">Активные заказы</span>
-        <span class="stat-value">—</span>
+    <div v-if="widgets.length" class="widgets-grid">
+      <div
+        v-for="w in widgets"
+        :key="w.key"
+        class="widget-cell"
+      >
+        <component :is="w.component" />
       </div>
-      <div class="stat-card">
-        <span class="stat-label">Транспорт в пути</span>
-        <span class="stat-value">—</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Контрагенты</span>
-        <span class="stat-value">—</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Завершено сегодня</span>
-        <span class="stat-value">—</span>
-      </div>
+    </div>
+
+    <div v-else class="empty-state">
+      <p>Нет активных виджетов</p>
     </div>
   </div>
 </template>
@@ -39,30 +78,16 @@ definePageMeta({ middleware: 'auth' });
   margin-bottom: 24px;
 }
 
-.stats-grid {
+.widgets-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 16px;
 }
 
-.stat-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.stat-label {
-  font-size: 13px;
-  color: #64748b;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #0f172a;
+.empty-state {
+  color: #94a3b8;
+  font-size: 14px;
+  text-align: center;
+  padding: 48px;
 }
 </style>
