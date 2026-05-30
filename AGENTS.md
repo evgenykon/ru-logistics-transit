@@ -47,6 +47,7 @@
 
 ## Development Workflow
 
+- Always use `make` targets — never call npm, bun, pnpm, npx, or bunx directly
 - `make dev` to start all services
 - `make dev-down` to stop
 - Prisma migrations via `make dev-migrate` / `make dev-migrate-create`
