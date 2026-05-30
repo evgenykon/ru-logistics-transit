@@ -61,8 +61,56 @@
 
 ## 5. Verify
 
-- [ ] `docker compose build` — all services build without errors
-- [ ] `make dev` — all services start, health checks pass
-- [ ] Frontend accessible at http://localhost:8089
-- [ ] API health check responds at http://localhost:8089/api/health
+- [x] `docker compose build` — all services build without errors
+- [x] `make dev` — all services start, health checks pass
+- [x] Frontend accessible at http://localhost:8089
+- [x] API health check responds at http://localhost:8089/api/health
+
+---
+
+# CRM Logistics — Feature Plan
+
+## 6. Auth & Layout
+
+- [x] API: login/logout routes (session-based, HttpOnly cookie)
+- [x] API: `GET /api/auth/me` — current user + roles + permissions
+- [x] Frontend: Login page (email + password, no registration)
+- [x] Frontend: App layout — dark left sidebar + light center
+- [x] Frontend: Sidebar navigation (reads installed modules from API)
+- [x] Frontend: useAuth composable (Pinia store)
+- [x] Frontend: useModules composable (Pinia store)
+
+## 7. Modules System
+
+- [x] Prisma: Module model (key, name, icon, route, enabled, order, config JSON)
+- [x] API: module CRUD routes (admin-only)
+- [x] API: `GET /api/modules` — list enabled modules for current user
+- [x] Frontend: Module installer page (admin)
+- [x] Frontend: Dynamic sidebar rendering from module registry
+
+## 8. Base Pages
+
+- [x] Dashboard page — placeholder with stats cards
+- [x] Settings page — profile info, password change
+- [x] 404 page
+
+## 9. Core Libraries
+
+- [x] Install: chart.js (vue-chartjs), maplibre-gl, markdown-it, jspdf, jszip (added to package.json)
+- [x] Roboto Flex — локальные woff2 файлы (cyrillic-ext, cyrillic, latin)
+- [x] Google Fonts CDN удалён — только локальные шрифты
+- [x] Chart component wrapper (Chart.vue — bar/line/doughnut/pie)
+- [x] Map component wrapper (Map.vue — MapLibre GL)
+- [x] Markdown renderer component (Markdown.vue — markdown-it)
+- [x] PDF generator utility (usePdf.ts — jsPDF)
+- [x] ZIP download utility (useZip.ts — JSZip)
+
+## 10. Future Modules (scaffold-ready)
+
+- [ ] Заказы/грузы
+- [ ] Транспорт/ТС
+- [ ] Склад/Warehouse
+- [ ] Контрагенты
+- [ ] Трекинг/GPS
+- [ ] Финансы
 

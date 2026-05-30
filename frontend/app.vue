@@ -12,6 +12,12 @@ html {
   scroll-behavior: smooth;
 }
 
+body {
+  font-family: 'Roboto Flex', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

@@ -18,7 +18,13 @@
     "nuxt": "^4.4.2",
     "pinia": "^3.0.4",
     "vue": "^3.5.30",
-    "vue-router": "^4.6.4"
+    "vue-router": "^4.6.4",
+    "chart.js": "^4.4.8",
+    "vue-chartjs": "^5.3.2",
+    "maplibre-gl": "^4.7.1",
+    "markdown-it": "^14.1.0",
+    "jspdf": "^2.5.2",
+    "jszip": "^3.10.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["@parcel/watcher", "esbuild"],

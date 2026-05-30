@@ -4,6 +4,11 @@ import fastifyCookie from '@fastify/cookie';
 import Redis from 'ioredis';
 import { logger } from './helpers/logger.helper';
 import { healthRoutes } from './routes/health.routes';
+import { authRoutes } from './routes/auth.routes';
+import { moduleRoutes } from './routes/module.routes';
+import { roleRoutes } from './routes/role.routes';
+import { userRoutes } from './routes/user.routes';
+import { organizationRoutes } from './routes/organization.routes';
 import { registry } from './metrics';
 
 const server = Fastify<RawServerDefault>({
@@ -42,6 +47,11 @@ server.get('/metrics', async (req, reply) => {
 });
 
 server.register(healthRoutes);
+server.register(authRoutes);
+server.register(moduleRoutes);
+server.register(roleRoutes);
+server.register(userRoutes);
+server.register(organizationRoutes);
 
 const start = async () => {
   try {

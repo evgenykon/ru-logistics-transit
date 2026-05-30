@@ -1,5 +1,5 @@
 export default defineNuxtConfig({
-  ssr: true,
+  ssr: false,
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
   experimental: {
@@ -7,8 +7,6 @@ export default defineNuxtConfig({
   },
   modules: ['@nuxtjs/tailwindcss', '@nuxt/eslint', '@pinia/nuxt'],
   routeRules: {
-    '/**': { ssr: false },
-    '/': { ssr: true },
     '/api/**': {},
   },
   app: {

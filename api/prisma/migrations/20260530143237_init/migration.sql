@@ -90,7 +90,7 @@ INSERT INTO "roles" ("id", "name", "description")
   ON CONFLICT ("name") DO NOTHING;
 
 INSERT INTO "users" ("id", "email", "name", "phone", "password", "createdAt", "updatedAt")
-  VALUES ('user_admin', 'admin@ru-logistics-transit.ru', 'Admin', NULL, '$2b$10$jvSq2IOvkT3.IVXgycf1JO2LrXkOoDohMLxGc0Ymc2OtxJCXkVpYa', NOW(), NOW())
+  VALUES ('user_admin', 'admin', 'Admin', NULL, '$2b$10$jvSq2IOvkT3.IVXgycf1JO2LrXkOoDohMLxGc0Ymc2OtxJCXkVpYa', NOW(), NOW())
   ON CONFLICT ("email") DO NOTHING;
 
 INSERT INTO "user_roles" ("userId", "roleId")
